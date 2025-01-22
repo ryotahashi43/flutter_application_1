@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_application_1/HomePage.dart';
 import 'package:flutter_application_1/MainPageWidget.dart';
+import 'package:flutter_application_1/2025kimatu/Home.dart';
 
 void main() {
   runApp(const MyApp());
@@ -32,7 +33,7 @@ class MyApp extends StatelessWidget {
         // tested with just a hot reload.
         primarySwatch: Colors.blue,
       ),
-      home: MainPageWidget(),
+      home: Home(),
     );
   }
 }
