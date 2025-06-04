@@ -1,8 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-const apiKey =
-    'AIzaSyBiD1H6jwCZv47DIJL3Ewo9f-o-3A8WJF0'; // ← 自分のAPIキーに置き換えてください
+const apiKey = ''; // ← 自分のAPIキーに置き換えてください
 
 Future<String> getGeminiResponse(String userInput) async {
   final url = Uri.parse(
