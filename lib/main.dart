@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'chat_page.dart';
-import 'home_screen.dart'; // メモ帳画面
+import '2025mobile/screens/chat_page.dart';
+import '2025mobile/screens/memo_page.dart'; // メモ帳画面
 
 void main() {
   runApp(MyApp());

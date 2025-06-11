@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import 'gemini_service.dart';
+import '../services/gemini_service.dart';
 
 class ChatBotPage extends StatefulWidget {
   @override
