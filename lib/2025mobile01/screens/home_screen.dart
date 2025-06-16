@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 import 'chat_page.dart';
-import 'memo_page.dart';
-import 'calendar_page.dart';
-import 'progress_page.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -14,9 +11,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Widget> _pages = [
     ChatPage(),
-    MemoPage(),
-    CalendarPage(),
-    ProgressPage(),
   ];
 
   @override

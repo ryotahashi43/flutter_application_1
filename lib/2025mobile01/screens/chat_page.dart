@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/gemini_service.dart';
 
 class ChatPage extends StatefulWidget {
@@ -8,18 +9,56 @@ class ChatPage extends StatefulWidget {
 
 class _ChatPageState extends State<ChatPage> {
   final TextEditingController _controller = TextEditingController();
-  final List<Map<String, String>> _messages = []; // チャット履歴
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final List<Map<String, String>> _messages = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadChatHistory();
+  }
+
+  Future<void> _loadChatHistory() async {
+    final snapshot =
+        await _firestore.collection('chatMessages').orderBy('timestamp').get();
+
+    final chats = snapshot.docs
+        .map((doc) => {
+              "role": doc['role']?.toString() ?? '',
+              "text": doc['text']?.toString() ?? '',
+            })
+        .toList();
+
+    setState(() {
+      _messages.addAll(chats);
+    });
+  }
 
   Future<void> _sendMessage() async {
-    final input = _controller.text;
+    final input = _controller.text.trim();
     if (input.isEmpty) return;
+
+    _controller.clear();
+
+    // ユーザーのメッセージをFirestoreに追加
+    await _firestore.collection('chatMessages').add({
+      'role': 'user',
+      'text': input,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
 
     setState(() {
       _messages.add({"role": "user", "text": input});
-      _controller.clear();
     });
 
     final reply = await getGeminiResponse(input);
+
+    // Geminiの返答も保存
+    await _firestore.collection('chatMessages').add({
+      'role': 'assistant',
+      'text': reply,
+      'timestamp': FieldValue.serverTimestamp(),
+    });
 
     setState(() {
       _messages.add({"role": "assistant", "text": reply});
