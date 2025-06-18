@@ -1,25 +1,41 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   Future<User?> signInWithGoogle() async {
-    final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+    try {
+      if (kIsWeb) {
+        // 🔹 Web の場合
+        GoogleAuthProvider googleProvider = GoogleAuthProvider();
 
-    if (googleUser == null) return null; // キャンセル時
+        UserCredential userCredential =
+            await _auth.signInWithPopup(googleProvider);
 
-    final GoogleSignInAuthentication googleAuth =
-        await googleUser.authentication;
+        return userCredential.user;
+      } else {
+        // 🔹 Android / iOS の場合
+        final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
 
-    final credential = GoogleAuthProvider.credential(
-      accessToken: googleAuth.accessToken,
-      idToken: googleAuth.idToken,
-    );
+        if (googleUser == null) return null;
 
-    UserCredential userCredential =
-        await _auth.signInWithCredential(credential);
-    return userCredential.user;
+        final GoogleSignInAuthentication googleAuth =
+            await googleUser.authentication;
+
+        final credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
+        );
+
+        final userCredential = await _auth.signInWithCredential(credential);
+        return userCredential.user;
+      }
+    } catch (e) {
+      print('Googleログインエラー: $e');
+      return null;
+    }
   }
 
   Future<void> signOut() async {
