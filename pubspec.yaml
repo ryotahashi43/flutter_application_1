@@ -13,9 +13,11 @@ dependencies:
   google_sign_in: ^6.2.1
   http: ^0.13.6
   cupertino_icons: ^1.0.8
-  firebase_core: ^2.30.0
-  firebase_auth: ^4.17.5
-  cloud_firestore: ^4.15.5
+
+  # Firebase 関連（バージョンを合わせる）
+  firebase_core: ^3.14.0
+  firebase_auth: ^5.6.0
+  cloud_firestore: ^5.6.0 # これも firebase_core 3.x に対応したバージョン
 
 dev_dependencies:
   flutter_test:
@@ -24,6 +26,5 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
-
   assets:
     - assets/images/c_img.jpg
