@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../services/gemini_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:intl/intl.dart'; // ← 日付表示用
+import '../services/gemini_service.dart';
 
 class ChatPage extends StatefulWidget {
   @override
@@ -11,24 +12,29 @@ class ChatPage extends StatefulWidget {
 class _ChatPageState extends State<ChatPage> {
   final _controller = TextEditingController();
   final _firestore = FirebaseFirestore.instance;
+  late final String uid;
 
-  // 例: ログイン済みユーザー ID を取得
-  final String uid = FirebaseAuth.instance.currentUser!.uid;
+  @override
+  void initState() {
+    super.initState();
+    uid = FirebaseAuth.instance.currentUser!.uid;
+  }
 
-  // ---------- 送信 ----------
+  // ───────── 送信 ─────────
   Future<void> _sendMessage() async {
     final input = _controller.text.trim();
     if (input.isEmpty) return;
     _controller.clear();
 
+    // user 発言
     await _firestore.collection('users').doc(uid).collection('chats').add({
       'role': 'user',
       'text': input,
       'timestamp': FieldValue.serverTimestamp(),
     });
 
+    // Gemini 返信
     final reply = await getGeminiResponse(input);
-
     await _firestore.collection('users').doc(uid).collection('chats').add({
       'role': 'assistant',
       'text': reply,
@@ -36,14 +42,13 @@ class _ChatPageState extends State<ChatPage> {
     });
   }
 
-  // ---------- UI ----------
+  // ───────── UI ─────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('学習アシスタントチャット')),
       body: Column(
         children: [
-          // 🔥 StreamBuilder でリアルタイム表示
           Expanded(
             child: StreamBuilder<QuerySnapshot>(
               stream: _firestore
@@ -53,16 +58,46 @@ class _ChatPageState extends State<ChatPage> {
                   .orderBy('timestamp')
                   .snapshots(),
               builder: (context, snapshot) {
-                if (!snapshot.hasData)
+                if (!snapshot.hasData) {
                   return const Center(child: CircularProgressIndicator());
+                }
 
                 final docs = snapshot.data!.docs;
-                return ListView.builder(
-                  itemCount: docs.length,
-                  itemBuilder: (context, index) {
-                    final data = docs[index];
-                    final isUser = data['role'] == 'user';
-                    return Align(
+                final List<Widget> messageWidgets = [];
+                String? lastDateLabel;
+
+                for (var doc in docs) {
+                  final data = doc.data() as Map<String, dynamic>;
+                  final isUser = data['role'] == 'user';
+
+                  // タイムスタンプ → 日付ラベル
+                  final ts = data['timestamp'] as Timestamp?;
+                  final dateLabel = ts != null
+                      ? DateFormat('yyyy年M月d日（EEE）', 'ja').format(ts.toDate())
+                      : '不明な日付';
+
+                  // 日付が変わったらラベルを挿入
+                  if (lastDateLabel != dateLabel) {
+                    messageWidgets.add(
+                      Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Center(
+                          child: Text(
+                            dateLabel,
+                            style: TextStyle(
+                              color: Colors.grey[700],
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                    lastDateLabel = dateLabel;
+                  }
+
+                  // メッセージ本体
+                  messageWidgets.add(
+                    Align(
                       alignment:
                           isUser ? Alignment.centerRight : Alignment.centerLeft,
                       child: Container(
@@ -75,8 +110,13 @@ class _ChatPageState extends State<ChatPage> {
                         ),
                         child: Text(data['text'] ?? ''),
                       ),
-                    );
-                  },
+                    ),
+                  );
+                }
+
+                return ListView(
+                  padding: const EdgeInsets.only(bottom: 10),
+                  children: messageWidgets,
                 );
               },
             ),
@@ -94,7 +134,9 @@ class _ChatPageState extends State<ChatPage> {
                   ),
                 ),
                 IconButton(
-                    icon: const Icon(Icons.send), onPressed: _sendMessage),
+                  icon: const Icon(Icons.send),
+                  onPressed: _sendMessage,
+                ),
               ],
             ),
           ),
