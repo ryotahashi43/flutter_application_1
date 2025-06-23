@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'login_page.dart'; // ← LoginPageのパスに応じて調整
 import 'chat_page.dart';
+import 'memo_page.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -14,6 +15,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   final List<Widget> _pages = [
     ChatPage(),
+    MemoPage(), // 後で実装予定
     // 他の画面（例: MemoPage(), CalendarPage()...）もここに追加予定ならあとでOK
   ];
 
