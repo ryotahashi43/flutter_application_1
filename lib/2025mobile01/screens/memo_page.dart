@@ -1,7 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'add_memo_page.dart'; // ← 追加画面をインポート
+import 'add_memo_page.dart'; // 追加画面
+import 'edit_memo_page.dart'; // 編集画面 ← 追加！
 
 class MemoPage extends StatelessWidget {
   final String uid = FirebaseAuth.instance.currentUser!.uid;
@@ -34,12 +35,22 @@ class MemoPage extends StatelessWidget {
               final note = notes[index];
               final title = note['title'] ?? '無題';
               final content = note['content'] ?? '';
+
               return ListTile(
                 title: Text(title),
-                subtitle:
-                    Text(content, maxLines: 2, overflow: TextOverflow.ellipsis),
+                subtitle: Text(
+                  content,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 onTap: () {
-                  // 後で編集画面などに遷移できるように
+                  // 編集画面に遷移
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => EditMemoPage(note: note),
+                    ),
+                  );
                 },
               );
             },
