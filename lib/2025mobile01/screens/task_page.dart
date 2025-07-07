@@ -114,7 +114,7 @@ class _TaskPageState extends State<TaskPage> {
                   'timestamp': FieldValue.serverTimestamp(),
                 });
 
-                Navigator.pop(context); // 成功時に閉じる
+                Navigator.pop(context);
               } catch (e) {
                 print('保存エラー: $e');
                 ScaffoldMessenger.of(context).showSnackBar(
@@ -124,6 +124,128 @@ class _TaskPageState extends State<TaskPage> {
             },
             child: Text('追加'),
           )
+        ],
+      ),
+    );
+  }
+
+  void _showEditTaskDialog(String docId, Map<String, dynamic> data) {
+    final titleController = TextEditingController(text: data['title']);
+    double progress = (data['progress'] ?? 0).toDouble();
+    String status = data['status'] ?? '未着手';
+    DateTime? selectedDate;
+    if ((data['deadline'] ?? '').isNotEmpty) {
+      selectedDate = DateTime.tryParse(data['deadline']);
+    }
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('タスクを編集'),
+        content: StatefulBuilder(
+          builder: (context, setState) => SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  controller: titleController,
+                  decoration: InputDecoration(labelText: 'タイトル'),
+                ),
+                SizedBox(height: 12),
+                Text('進捗: ${progress.round()}%'),
+                Slider(
+                  value: progress,
+                  min: 0,
+                  max: 100,
+                  divisions: 20,
+                  label: '${progress.round()}%',
+                  onChanged: (value) {
+                    setState(() {
+                      progress = value;
+                    });
+                  },
+                ),
+                DropdownButton<String>(
+                  value: status,
+                  onChanged: (value) {
+                    if (value != null) setState(() => status = value);
+                  },
+                  items: ['未着手', '進行中', '完了']
+                      .map((s) => DropdownMenuItem(
+                            value: s,
+                            child: Text(s),
+                          ))
+                      .toList(),
+                ),
+                SizedBox(height: 12),
+                Row(
+                  children: [
+                    Text(selectedDate == null
+                        ? '期限なし'
+                        : '期限: ${selectedDate!.toLocal().toString().split(' ')[0]}'),
+                    Spacer(),
+                    TextButton(
+                      child: Text('日付選択'),
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: selectedDate ?? DateTime.now(),
+                          firstDate: DateTime(2000),
+                          lastDate: DateTime(2100),
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            selectedDate = picked;
+                          });
+                        }
+                      },
+                    )
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        actions: [
+          TextButton(
+            child: Text('削除', style: TextStyle(color: Colors.red)),
+            onPressed: () async {
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(uid)
+                  .collection('tasks')
+                  .doc(docId)
+                  .delete();
+              Navigator.pop(context);
+            },
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('キャンセル'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final title = titleController.text.trim();
+              if (title.isEmpty) return;
+
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(uid)
+                  .collection('tasks')
+                  .doc(docId)
+                  .update({
+                'title': title,
+                'progress': progress.round(),
+                'status': status,
+                'deadline': selectedDate != null
+                    ? selectedDate!.toLocal().toString().split(' ')[0]
+                    : '',
+              });
+
+              Navigator.pop(context);
+            },
+            child: Text('更新'),
+          ),
         ],
       ),
     );
@@ -151,7 +273,8 @@ class _TaskPageState extends State<TaskPage> {
           return ListView.builder(
             itemCount: docs.length,
             itemBuilder: (context, index) {
-              final data = docs[index];
+              final doc = docs[index];
+              final data = doc.data() as Map<String, dynamic>;
               return ListTile(
                 title: Text(data['title']),
                 subtitle: Column(
@@ -165,7 +288,7 @@ class _TaskPageState extends State<TaskPage> {
                 ),
                 trailing: Icon(Icons.chevron_right),
                 onTap: () {
-                  // 後で編集ページに遷移させる予定
+                  _showEditTaskDialog(doc.id, data);
                 },
               );
             },
