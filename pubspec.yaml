@@ -20,6 +20,8 @@ dependencies:
   cloud_firestore: ^5.6.0 # これも firebase_core 3.x に対応したバージョン
   intl: 0.19.0
   table_calendar: ^3.0.9
+  flutter_localizations:
+    sdk: flutter
 
 dev_dependencies:
   flutter_test:

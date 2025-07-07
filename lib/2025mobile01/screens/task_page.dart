@@ -92,23 +92,35 @@ class _TaskPageState extends State<TaskPage> {
           ElevatedButton(
             onPressed: () async {
               final title = titleController.text.trim();
-              if (title.isEmpty) return;
+              if (title.isEmpty) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('タイトルを入力してください')),
+                );
+                return;
+              }
 
-              await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(uid)
-                  .collection('tasks')
-                  .add({
-                'title': title,
-                'progress': progress.round(),
-                'status': status,
-                'deadline': selectedDate != null
-                    ? selectedDate!.toLocal().toString().split(' ')[0]
-                    : '',
-                'timestamp': FieldValue.serverTimestamp(),
-              });
+              try {
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(uid)
+                    .collection('tasks')
+                    .add({
+                  'title': title,
+                  'progress': progress.round(),
+                  'status': status,
+                  'deadline': selectedDate != null
+                      ? selectedDate!.toLocal().toString().split(' ')[0]
+                      : '',
+                  'timestamp': FieldValue.serverTimestamp(),
+                });
 
-              Navigator.pop(context);
+                Navigator.pop(context); // 成功時に閉じる
+              } catch (e) {
+                print('保存エラー: $e');
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('追加に失敗しました')),
+                );
+              }
             },
             child: Text('追加'),
           )

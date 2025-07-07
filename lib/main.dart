@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:intl/date_symbol_data_local.dart'; // ← 追加
+import 'package:flutter_localizations/flutter_localizations.dart'; // ← ★追加
+import 'package:intl/date_symbol_data_local.dart';
 import '2025mobile01/services/firebase_options.dart';
 import '2025mobile01/screens/login_page.dart';
 
@@ -9,9 +10,7 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
-  // 🌐 日本語ローカライズ初期化（他のロケールに変える場合は 'en' など指定）
-  await initializeDateFormatting('ja'); // ← ここ追加！
+  await initializeDateFormatting('ja'); // ← 日付フォーマットの日本語化
 
   runApp(MyApp());
 }
@@ -21,8 +20,19 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: '学習アシスタント',
-      home: LoginPage(),
       debugShowCheckedModeBanner: false,
+      locale: Locale('ja'), // ← ★アプリ全体のロケールを日本語に設定
+      supportedLocales: const [
+        Locale('ja'), // ← 日本語をサポート
+        Locale('en'), // ← 英語も必要なら
+      ],
+      localizationsDelegates: const [
+        // ← ★ローカライズの各種デリゲート
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      home: LoginPage(),
     );
   }
 }
