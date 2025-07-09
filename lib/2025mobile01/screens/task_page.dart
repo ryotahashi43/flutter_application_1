@@ -9,6 +9,7 @@ class TaskPage extends StatefulWidget {
 
 class _TaskPageState extends State<TaskPage> {
   final String uid = FirebaseAuth.instance.currentUser!.uid;
+  bool _showCompleted = true; // ← 完了タスクの表示切替
 
   void _showAddTaskDialog() {
     final titleController = TextEditingController();
@@ -58,9 +59,8 @@ class _TaskPageState extends State<TaskPage> {
                 SizedBox(height: 12),
                 Row(
                   children: [
-                    Text(selectedDate == null
-                        ? '期限なし'
-                        : '期限: ${selectedDate!.toLocal().toString().split(' ')[0]}'),
+                    Text(
+                        '期限: ${selectedDate?.toLocal().toString().split(' ')[0] ?? 'なし'}'),
                     Spacer(),
                     TextButton(
                       child: Text('日付選択'),
@@ -254,19 +254,36 @@ class _TaskPageState extends State<TaskPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('進捗管理')),
+      appBar: AppBar(
+        title: Text('進捗管理'),
+        actions: [
+          IconButton(
+            icon: Icon(
+              _showCompleted ? Icons.visibility : Icons.visibility_off,
+            ),
+            tooltip: _showCompleted ? '完了を非表示' : '完了を表示',
+            onPressed: () {
+              setState(() {
+                _showCompleted = !_showCompleted;
+              });
+            },
+          ),
+        ],
+      ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('users')
             .doc(uid)
             .collection('tasks')
-            .orderBy('timestamp')
+            .orderBy('deadline')
             .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData)
             return Center(child: CircularProgressIndicator());
 
-          final docs = snapshot.data!.docs;
+          final docs = snapshot.data!.docs
+              .where((doc) => _showCompleted || (doc['status'] ?? '') != '完了')
+              .toList();
 
           if (docs.isEmpty) return Center(child: Text('進捗タスクがありません'));
 
