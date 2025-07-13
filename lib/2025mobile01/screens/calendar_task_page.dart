@@ -79,18 +79,40 @@ class _CalendarTaskPageState extends State<CalendarTaskPage> {
                     itemCount: docs.length,
                     itemBuilder: (context, index) {
                       final data = docs[index].data() as Map<String, dynamic>;
-                      return ListTile(
-                        title: Text(data['title'] ?? ''),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('進捗: ${data['progress'] ?? 0}%'),
-                            Text('ステータス: ${data['status'] ?? '未着手'}'),
-                          ],
+                      final status = data['status'] ?? '未着手';
+
+                      Color tileColor;
+                      switch (status) {
+                        case '進行中':
+                          tileColor = Colors.blue[100]!;
+                          break;
+                        case '完了':
+                          tileColor = Colors.green[100]!;
+                          break;
+                        default:
+                          tileColor = Colors.grey[300]!;
+                      }
+
+                      return Container(
+                        margin:
+                            EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: tileColor,
+                          borderRadius: BorderRadius.circular(8),
                         ),
-                        onTap: () {
-                          _showEditTaskDialog(docs[index].id, data);
-                        },
+                        child: ListTile(
+                          title: Text(data['title'] ?? ''),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('進捗: ${data['progress'] ?? 0}%'),
+                              Text('ステータス: $status'),
+                            ],
+                          ),
+                          onTap: () {
+                            _showEditTaskDialog(docs[index].id, data);
+                          },
+                        ),
                       );
                     },
                   );
