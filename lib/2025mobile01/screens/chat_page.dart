@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart'; // ← 日付表示用
+import 'package:intl/intl.dart'; // ← 日付・時刻表示用
 import '../services/gemini_service.dart';
 
 class ChatPage extends StatefulWidget {
@@ -46,7 +46,42 @@ class _ChatPageState extends State<ChatPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('学習アシスタントチャット')),
+      appBar: AppBar(
+        title: const Text('学習アシスタントチャット'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.delete),
+            tooltip: '全履歴削除',
+            onPressed: () async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (_) => AlertDialog(
+                  title: Text('チャット履歴を削除しますか？'),
+                  content: Text('すべてのチャット履歴が削除されます。'),
+                  actions: [
+                    TextButton(
+                        onPressed: () => Navigator.pop(context, false),
+                        child: Text('キャンセル')),
+                    ElevatedButton(
+                        onPressed: () => Navigator.pop(context, true),
+                        child: Text('削除')),
+                  ],
+                ),
+              );
+              if (confirmed == true) {
+                final chats = await _firestore
+                    .collection('users')
+                    .doc(uid)
+                    .collection('chats')
+                    .get();
+                for (var doc in chats.docs) {
+                  await doc.reference.delete();
+                }
+              }
+            },
+          )
+        ],
+      ),
       body: Column(
         children: [
           Expanded(
@@ -70,13 +105,15 @@ class _ChatPageState extends State<ChatPage> {
                   final data = doc.data() as Map<String, dynamic>;
                   final isUser = data['role'] == 'user';
 
-                  // タイムスタンプ → 日付ラベル
                   final ts = data['timestamp'] as Timestamp?;
-                  final dateLabel = ts != null
-                      ? DateFormat('yyyy年M月d日（EEE）', 'ja').format(ts.toDate())
+                  final date = ts?.toDate();
+                  final dateLabel = date != null
+                      ? DateFormat('yyyy年M月d日（EEE）', 'ja').format(date)
                       : '不明な日付';
+                  final timeLabel =
+                      date != null ? DateFormat('HH:mm').format(date) : '';
 
-                  // 日付が変わったらラベルを挿入
+                  // 日付が変わったら日付ラベルを表示
                   if (lastDateLabel != dateLabel) {
                     messageWidgets.add(
                       Padding(
@@ -95,7 +132,7 @@ class _ChatPageState extends State<ChatPage> {
                     lastDateLabel = dateLabel;
                   }
 
-                  // メッセージ本体
+                  // メッセージ本体 + 送信時刻
                   messageWidgets.add(
                     Align(
                       alignment:
@@ -108,7 +145,20 @@ class _ChatPageState extends State<ChatPage> {
                           color: isUser ? Colors.blue[100] : Colors.grey[300],
                           borderRadius: BorderRadius.circular(12),
                         ),
-                        child: Text(data['text'] ?? ''),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(data['text'] ?? ''),
+                            SizedBox(height: 4),
+                            Text(
+                              timeLabel,
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                   );
