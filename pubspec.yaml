@@ -32,3 +32,4 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/c_img.jpg
+    - assets/images/geegte_logo.png

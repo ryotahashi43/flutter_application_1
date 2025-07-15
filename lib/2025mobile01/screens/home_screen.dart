@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
-import 'login_page.dart'; // ← LoginPageのパスに応じて調整
+import 'login_page.dart';
 import 'chat_page.dart';
 import 'memo_page.dart';
 import 'task_page.dart';
-import 'calendar_task_page.dart'; // ← CalendarPageのパスに応じて調整
+import 'calendar_task_page.dart';
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -20,39 +20,79 @@ class _HomeScreenState extends State<HomeScreen> {
     MemoPage(),
     CalendarTaskPage(),
     TaskPage(),
-    // 他の画面（例: MemoPage(), CalendarPage()...）もここに追加予定ならあとでOK
+  ];
+
+  final List<String> _titles = [
+    'チャット',
+    'メモ',
+    'カレンダー',
+    '進捗',
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('ホーム'),
+        title: Text(_titles[_currentIndex]),
+        centerTitle: true,
         actions: [
           IconButton(
             icon: Icon(Icons.logout),
+            tooltip: 'ログアウト',
             onPressed: () async {
-              await _authService.signOut();
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) => LoginPage()),
+              final shouldLogout = await showDialog<bool>(
+                context: context,
+                builder: (context) => AlertDialog(
+                  title: Text('ログアウトしますか？'),
+                  content: Text('もう一度ログインする必要があります。'),
+                  actions: [
+                    TextButton(
+                      child: Text('キャンセル'),
+                      onPressed: () => Navigator.pop(context, false),
+                    ),
+                    ElevatedButton(
+                      child: Text('ログアウト'),
+                      onPressed: () => Navigator.pop(context, true),
+                    ),
+                  ],
+                ),
               );
+
+              if (shouldLogout == true) {
+                await _authService.signOut();
+                Navigator.pushReplacement(
+                  context,
+                  MaterialPageRoute(builder: (_) => LoginPage()),
+                );
+              }
             },
           )
         ],
       ),
-      body: _pages[_currentIndex],
+
+      // ページ切り替えをIndexedStackでスムーズに
+      body: IndexedStack(
+        index: _currentIndex,
+        children: _pages,
+      ),
+
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
-        selectedItemColor: Colors.blue,
+        type: BottomNavigationBarType.fixed,
+        selectedItemColor: Theme.of(context).colorScheme.primary,
         unselectedItemColor: Colors.grey,
+        selectedFontSize: 12,
+        unselectedFontSize: 11,
         onTap: (index) => setState(() => _currentIndex = index),
         items: [
-          BottomNavigationBarItem(icon: Icon(Icons.chat), label: 'チャット'),
-          BottomNavigationBarItem(icon: Icon(Icons.note), label: 'メモ'),
           BottomNavigationBarItem(
-              icon: Icon(Icons.calendar_today), label: 'カレンダー'),
-          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: '進捗'),
+              icon: Icon(Icons.chat_bubble_outline), label: 'チャット'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.note_alt_outlined), label: 'メモ'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.calendar_today_outlined), label: 'カレンダー'),
+          BottomNavigationBarItem(
+              icon: Icon(Icons.bar_chart_outlined), label: '進捗'),
         ],
       ),
     );
