@@ -39,7 +39,6 @@ class _ChatPageState extends State<ChatPage> {
       'timestamp': FieldValue.serverTimestamp(),
     });
 
-    // メッセージ送信後に自動スクロール
     Future.delayed(Duration(milliseconds: 300), () {
       if (_scrollController.hasClients) {
         _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
@@ -137,7 +136,6 @@ class _ChatPageState extends State<ChatPage> {
                     lastDateLabel = dateLabel;
                   }
 
-                  // 吹き出しメッセージ
                   messageWidgets.add(
                     Row(
                       mainAxisAlignment: isUser

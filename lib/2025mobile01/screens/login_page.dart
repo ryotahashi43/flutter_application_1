@@ -22,13 +22,12 @@ class _LoginPageState extends State<LoginPage> {
         toolbarHeight: 0,
       ),
 
-      // CenterでColumn全体を中央に配置
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32.0),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.center, // ← 横方向も中央揃え
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               // タイトル
               Text(
@@ -41,11 +40,9 @@ class _LoginPageState extends State<LoginPage> {
               ),
               SizedBox(height: 16),
 
-              // Flutterロゴ（任意で変更可能）
               FlutterLogo(size: 80),
               SizedBox(height: 40),
 
-              // Googleログインボタン（幅を調整）
               SizedBox(
                 width: 300, // ← ボタンの横幅を指定
                 child: ElevatedButton.icon(
@@ -87,7 +84,6 @@ class _LoginPageState extends State<LoginPage> {
 
               SizedBox(height: 40),
 
-              // 利用規約リンク
               TextButton(
                 onPressed: () {
                   Navigator.push(

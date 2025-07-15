@@ -105,7 +105,6 @@ class MemoPage extends StatelessWidget {
           );
         },
       ),
-      // ここではfloatingActionButtonは設定しません！
     );
   }
 }

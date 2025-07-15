@@ -38,9 +38,9 @@ class AuthService {
   Future<void> signOut() async {
     try {
       if (!kIsWeb) {
-        await GoogleSignIn().signOut(); // モバイルのセッション破棄
+        await GoogleSignIn().signOut();
       }
-      await _auth.signOut(); // Firebaseセッション終了
+      await _auth.signOut();
     } catch (e) {
       print('ログアウト失敗: $e');
     }

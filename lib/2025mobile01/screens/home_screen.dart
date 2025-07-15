@@ -92,7 +92,6 @@ class _HomeScreenState extends State<HomeScreen> {
         index: _currentIndex,
         children: _pages,
       ),
-      // メモタブのときだけFABを右下に表示し、AddMemoPageへ遷移
       floatingActionButton: _currentIndex == 1
           ? FloatingActionButton(
               onPressed: () {
