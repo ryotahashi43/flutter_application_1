@@ -1,7 +1,8 @@
-import 'package:flutter/material.dart';
-import 'package:table_calendar/table_calendar.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:table_calendar/table_calendar.dart';
 
 class CalendarTaskPage extends StatefulWidget {
   @override
@@ -10,11 +11,11 @@ class CalendarTaskPage extends StatefulWidget {
 
 class _CalendarTaskPageState extends State<CalendarTaskPage> {
   DateTime _focusedDay = DateTime.now();
-  DateTime? _selectedDay = DateTime.now(); // 初期状態で今日を選択
-  final uid = FirebaseAuth.instance.currentUser!.uid;
+  DateTime? _selectedDay = DateTime.now();
+  final String uid = FirebaseAuth.instance.currentUser!.uid;
 
   String _formatDate(DateTime date) {
-    return date.toLocal().toString().split(' ')[0]; // yyyy-MM-dd
+    return DateFormat('yyyy-MM-dd').format(date);
   }
 
   @override
@@ -68,9 +69,9 @@ class _CalendarTaskPageState extends State<CalendarTaskPage> {
                 child: Column(
                   children: [
                     _buildSectionTitle('■ タスク'),
-                    _buildTaskList(selectedDateStr!),
+                    _buildTaskList(_formatDate(_selectedDay!)),
                     _buildSectionTitle('■ 予定'),
-                    _buildScheduleList(selectedDateStr),
+                    _buildScheduleList(_formatDate(_selectedDay!)),
                   ],
                 ),
               ),
@@ -84,23 +85,46 @@ class _CalendarTaskPageState extends State<CalendarTaskPage> {
     return Container(
       alignment: Alignment.centerLeft,
       margin: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      child: Text(title,
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+      child: Text(
+        title,
+        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+      ),
     );
   }
 
-  Widget _buildTaskList(String date) {
+  Widget _buildTaskList(String selectedDateStr) {
+    DateTime selectedDate = DateTime.parse(selectedDateStr);
+
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('users')
           .doc(uid)
           .collection('tasks')
-          .where('deadline', isEqualTo: date)
+          .where('startDate', isLessThanOrEqualTo: selectedDateStr)
           .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData)
           return Center(child: CircularProgressIndicator());
-        final docs = snapshot.data!.docs;
+
+        final docs = snapshot.data!.docs.where((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          final start = data['startDate'];
+          final end = data['endDate'];
+
+          if (start == null || end == null) return false;
+
+          try {
+            final startDate = DateTime.parse(start);
+            final endDate = DateTime.parse(end);
+            return selectedDate.isAtSameMomentAs(startDate) ||
+                selectedDate.isAtSameMomentAs(endDate) ||
+                (selectedDate.isAfter(startDate) &&
+                    selectedDate.isBefore(endDate));
+          } catch (_) {
+            return false;
+          }
+        }).toList();
+
         if (docs.isEmpty) return Center(child: Text('この日のタスクはありません'));
 
         return ListView.builder(
@@ -157,6 +181,7 @@ class _CalendarTaskPageState extends State<CalendarTaskPage> {
       builder: (context, snapshot) {
         if (!snapshot.hasData)
           return Center(child: CircularProgressIndicator());
+
         final docs = snapshot.data!.docs;
         if (docs.isEmpty) return Center(child: Text('この日の予定はありません'));
 
@@ -179,90 +204,93 @@ class _CalendarTaskPageState extends State<CalendarTaskPage> {
     );
   }
 
-  // ───── タスク編集 ─────
   void _showEditTaskDialog(String docId, Map<String, dynamic> data) {
-    final titleController = TextEditingController(text: data['title']);
-    double progress = (data['progress'] ?? 0).toDouble();
+    final titleController = TextEditingController(text: data['title'] ?? '');
+    final progress = (data['progress'] ?? 0).toDouble();
     String status = data['status'] ?? '未着手';
 
     showDialog(
       context: context,
-      builder: (_) => AlertDialog(
-        title: Text('タスクを編集'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
+      builder: (_) => StatefulBuilder(
+        builder: (ctx, setState) => AlertDialog(
+          title: Text('タスク編集'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
                 controller: titleController,
-                decoration: InputDecoration(labelText: 'タイトル')),
-            SizedBox(height: 8),
-            Text('進捗: ${progress.round()}%'),
-            Slider(
-              value: progress,
-              min: 0,
-              max: 100,
-              divisions: 20,
-              label: '${progress.round()}%',
-              onChanged: (value) => setState(() => progress = value),
-            ),
-            DropdownButton<String>(
-              value: status,
-              onChanged: (value) {
-                if (value != null) setState(() => status = value);
+                decoration: InputDecoration(labelText: 'タイトル'),
+              ),
+              SizedBox(height: 8),
+              Text('進捗: ${progress.round()}%'),
+              Slider(
+                value: progress,
+                min: 0,
+                max: 100,
+                divisions: 20,
+                label: '${progress.round()}%',
+                onChanged: (value) => setState(() => data['progress'] = value),
+              ),
+              DropdownButton<String>(
+                value: status,
+                onChanged: (value) {
+                  if (value != null) setState(() => status = value);
+                },
+                items: ['未着手', '進行中', '完了']
+                    .map((s) => DropdownMenuItem(value: s, child: Text(s)))
+                    .toList(),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () async {
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(uid)
+                    .collection('tasks')
+                    .doc(docId)
+                    .delete();
+                Navigator.pop(context);
               },
-              items: ['未着手', '進行中', '完了']
-                  .map((s) => DropdownMenuItem(value: s, child: Text(s)))
-                  .toList(),
+              child: Text('削除', style: TextStyle(color: Colors.red)),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('キャンセル'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final newTitle = titleController.text.trim();
+                if (newTitle.isEmpty) return;
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(uid)
+                    .collection('tasks')
+                    .doc(docId)
+                    .update({
+                  'title': newTitle,
+                  'progress': data['progress'].round(),
+                  'status': status,
+                });
+                Navigator.pop(context);
+              },
+              child: Text('保存'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () async {
-              await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(uid)
-                  .collection('tasks')
-                  .doc(docId)
-                  .delete();
-              Navigator.pop(context);
-            },
-            child: Text('削除', style: TextStyle(color: Colors.red)),
-          ),
-          TextButton(
-              onPressed: () => Navigator.pop(context), child: Text('キャンセル')),
-          ElevatedButton(
-            onPressed: () async {
-              final newTitle = titleController.text.trim();
-              if (newTitle.isEmpty) return;
-              await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(uid)
-                  .collection('tasks')
-                  .doc(docId)
-                  .update({
-                'title': newTitle,
-                'progress': progress.round(),
-                'status': status,
-              });
-              Navigator.pop(context);
-            },
-            child: Text('保存'),
-          ),
-        ],
       ),
     );
   }
 
-  // ───── 予定編集 ─────
   void _showEditScheduleDialog(String docId, Map<String, dynamic> data) {
-    final titleController = TextEditingController(text: data['title']);
+    final titleController = TextEditingController(text: data['title'] ?? '');
     final memoController = TextEditingController(text: data['memo'] ?? '');
 
     showDialog(
       context: context,
       builder: (_) => AlertDialog(
-        title: Text('予定を編集'),
+        title: Text('予定編集'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -313,7 +341,6 @@ class _CalendarTaskPageState extends State<CalendarTaskPage> {
     );
   }
 
-  // ───── 予定追加 ─────
   void _showAddScheduleDialog() {
     final titleController = TextEditingController();
     final memoController = TextEditingController();

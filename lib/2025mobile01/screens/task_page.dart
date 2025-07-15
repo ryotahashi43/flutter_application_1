@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 class TaskPage extends StatefulWidget {
   @override
@@ -9,13 +10,14 @@ class TaskPage extends StatefulWidget {
 
 class _TaskPageState extends State<TaskPage> {
   final String uid = FirebaseAuth.instance.currentUser!.uid;
-  bool _showCompleted = true; // ← 完了タスクの表示切替
+  bool _showCompleted = true;
 
   void _showAddTaskDialog() {
     final titleController = TextEditingController();
     double progress = 0;
     String status = '未着手';
-    DateTime? selectedDate;
+    DateTime? startDate;
+    DateTime? endDate;
 
     showDialog(
       context: context,
@@ -50,34 +52,48 @@ class _TaskPageState extends State<TaskPage> {
                     if (value != null) setState(() => status = value);
                   },
                   items: ['未着手', '進行中', '完了']
-                      .map((s) => DropdownMenuItem(
-                            value: s,
-                            child: Text(s),
-                          ))
+                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                       .toList(),
                 ),
                 SizedBox(height: 12),
                 Row(
                   children: [
                     Text(
-                        '期限: ${selectedDate?.toLocal().toString().split(' ')[0] ?? 'なし'}'),
+                      '開始日: ${startDate != null ? DateFormat('yyyy/MM/dd').format(startDate!) : '未設定'}',
+                    ),
                     Spacer(),
                     TextButton(
-                      child: Text('日付選択'),
                       onPressed: () async {
                         final picked = await showDatePicker(
                           context: context,
                           initialDate: DateTime.now(),
-                          firstDate: DateTime.now().subtract(Duration(days: 1)),
+                          firstDate: DateTime(2000),
                           lastDate: DateTime(2100),
                         );
-                        if (picked != null) {
-                          setState(() {
-                            selectedDate = picked;
-                          });
-                        }
+                        if (picked != null) setState(() => startDate = picked);
                       },
-                    )
+                      child: Text('開始日を選択'),
+                    ),
+                  ],
+                ),
+                Row(
+                  children: [
+                    Text(
+                      '終了日: ${endDate != null ? DateFormat('yyyy/MM/dd').format(endDate!) : '未設定'}',
+                    ),
+                    Spacer(),
+                    TextButton(
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: startDate ?? DateTime.now(),
+                          firstDate: startDate ?? DateTime.now(),
+                          lastDate: DateTime(2100),
+                        );
+                        if (picked != null) setState(() => endDate = picked);
+                      },
+                      child: Text('終了日を選択'),
+                    ),
                   ],
                 ),
               ],
@@ -99,28 +115,24 @@ class _TaskPageState extends State<TaskPage> {
                 return;
               }
 
-              try {
-                await FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(uid)
-                    .collection('tasks')
-                    .add({
-                  'title': title,
-                  'progress': progress.round(),
-                  'status': status,
-                  'deadline': selectedDate != null
-                      ? selectedDate!.toLocal().toString().split(' ')[0]
-                      : '',
-                  'timestamp': FieldValue.serverTimestamp(),
-                });
+              await FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(uid)
+                  .collection('tasks')
+                  .add({
+                'title': title,
+                'progress': progress.round(),
+                'status': status,
+                'startDate': startDate != null
+                    ? DateFormat('yyyy-MM-dd').format(startDate!)
+                    : '',
+                'endDate': endDate != null
+                    ? DateFormat('yyyy-MM-dd').format(endDate!)
+                    : '',
+                'timestamp': FieldValue.serverTimestamp(),
+              });
 
-                Navigator.pop(context);
-              } catch (e) {
-                print('保存エラー: $e');
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('追加に失敗しました')),
-                );
-              }
+              Navigator.pop(context);
             },
             child: Text('追加'),
           )
@@ -133,24 +145,23 @@ class _TaskPageState extends State<TaskPage> {
     final titleController = TextEditingController(text: data['title']);
     double progress = (data['progress'] ?? 0).toDouble();
     String status = data['status'] ?? '未着手';
-    DateTime? selectedDate;
-    if ((data['deadline'] ?? '').isNotEmpty) {
-      selectedDate = DateTime.tryParse(data['deadline']);
-    }
+    DateTime? startDate =
+        data['startDate'] != '' ? DateTime.tryParse(data['startDate']) : null;
+    DateTime? endDate =
+        data['endDate'] != '' ? DateTime.tryParse(data['endDate']) : null;
 
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('タスクを編集'),
-        content: StatefulBuilder(
-          builder: (context, setState) => SingleChildScrollView(
+      builder: (context) => StatefulBuilder(
+        builder: (context, setState) => AlertDialog(
+          title: Text('タスクを編集'),
+          content: SingleChildScrollView(
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 TextField(
-                  controller: titleController,
-                  decoration: InputDecoration(labelText: 'タイトル'),
-                ),
+                    controller: titleController,
+                    decoration: InputDecoration(labelText: 'タイトル')),
                 SizedBox(height: 12),
                 Text('進捗: ${progress.round()}%'),
                 Slider(
@@ -159,11 +170,7 @@ class _TaskPageState extends State<TaskPage> {
                   max: 100,
                   divisions: 20,
                   label: '${progress.round()}%',
-                  onChanged: (value) {
-                    setState(() {
-                      progress = value;
-                    });
-                  },
+                  onChanged: (value) => setState(() => progress = value),
                 ),
                 DropdownButton<String>(
                   value: status,
@@ -171,33 +178,46 @@ class _TaskPageState extends State<TaskPage> {
                     if (value != null) setState(() => status = value);
                   },
                   items: ['未着手', '進行中', '完了']
-                      .map((s) => DropdownMenuItem(
-                            value: s,
-                            child: Text(s),
-                          ))
+                      .map((s) => DropdownMenuItem(value: s, child: Text(s)))
                       .toList(),
                 ),
                 SizedBox(height: 12),
                 Row(
                   children: [
-                    Text(selectedDate == null
-                        ? '期限なし'
-                        : '期限: ${selectedDate!.toLocal().toString().split(' ')[0]}'),
+                    Text(
+                      '開始日: ${startDate != null ? DateFormat('yyyy/MM/dd').format(startDate!) : '未設定'}',
+                    ),
                     Spacer(),
                     TextButton(
-                      child: Text('日付選択'),
+                      child: Text('開始日を選択'),
                       onPressed: () async {
                         final picked = await showDatePicker(
                           context: context,
-                          initialDate: selectedDate ?? DateTime.now(),
+                          initialDate: startDate ?? DateTime.now(),
                           firstDate: DateTime(2000),
                           lastDate: DateTime(2100),
                         );
-                        if (picked != null) {
-                          setState(() {
-                            selectedDate = picked;
-                          });
-                        }
+                        if (picked != null) setState(() => startDate = picked);
+                      },
+                    )
+                  ],
+                ),
+                Row(
+                  children: [
+                    Text(
+                      '終了日: ${endDate != null ? DateFormat('yyyy/MM/dd').format(endDate!) : '未設定'}',
+                    ),
+                    Spacer(),
+                    TextButton(
+                      child: Text('終了日を選択'),
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: context,
+                          initialDate: endDate ?? startDate ?? DateTime.now(),
+                          firstDate: startDate ?? DateTime.now(),
+                          lastDate: DateTime(2100),
+                        );
+                        if (picked != null) setState(() => endDate = picked);
                       },
                     )
                   ],
@@ -205,48 +225,49 @@ class _TaskPageState extends State<TaskPage> {
               ],
             ),
           ),
+          actions: [
+            TextButton(
+              child: Text('削除', style: TextStyle(color: Colors.red)),
+              onPressed: () async {
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(uid)
+                    .collection('tasks')
+                    .doc(docId)
+                    .delete();
+                Navigator.pop(context);
+              },
+            ),
+            TextButton(
+              child: Text('キャンセル'),
+              onPressed: () => Navigator.pop(context),
+            ),
+            ElevatedButton(
+              child: Text('保存'),
+              onPressed: () async {
+                final newTitle = titleController.text.trim();
+                if (newTitle.isEmpty) return;
+                await FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(uid)
+                    .collection('tasks')
+                    .doc(docId)
+                    .update({
+                  'title': newTitle,
+                  'progress': progress.round(),
+                  'status': status,
+                  'startDate': startDate != null
+                      ? DateFormat('yyyy-MM-dd').format(startDate!)
+                      : '',
+                  'endDate': endDate != null
+                      ? DateFormat('yyyy-MM-dd').format(endDate!)
+                      : '',
+                });
+                Navigator.pop(context);
+              },
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            child: Text('削除', style: TextStyle(color: Colors.red)),
-            onPressed: () async {
-              await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(uid)
-                  .collection('tasks')
-                  .doc(docId)
-                  .delete();
-              Navigator.pop(context);
-            },
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('キャンセル'),
-          ),
-          ElevatedButton(
-            onPressed: () async {
-              final title = titleController.text.trim();
-              if (title.isEmpty) return;
-
-              await FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(uid)
-                  .collection('tasks')
-                  .doc(docId)
-                  .update({
-                'title': title,
-                'progress': progress.round(),
-                'status': status,
-                'deadline': selectedDate != null
-                    ? selectedDate!.toLocal().toString().split(' ')[0]
-                    : '',
-              });
-
-              Navigator.pop(context);
-            },
-            child: Text('更新'),
-          ),
-        ],
       ),
     );
   }
@@ -258,9 +279,8 @@ class _TaskPageState extends State<TaskPage> {
         title: Text('進捗管理'),
         actions: [
           IconButton(
-            icon: Icon(
-              _showCompleted ? Icons.visibility : Icons.visibility_off,
-            ),
+            icon:
+                Icon(_showCompleted ? Icons.visibility : Icons.visibility_off),
             tooltip: _showCompleted ? '完了を非表示' : '完了を表示',
             onPressed: () {
               setState(() {
@@ -275,7 +295,7 @@ class _TaskPageState extends State<TaskPage> {
             .collection('users')
             .doc(uid)
             .collection('tasks')
-            .orderBy('deadline')
+            .orderBy('startDate')
             .snapshots(),
         builder: (context, snapshot) {
           if (!snapshot.hasData)
@@ -292,6 +312,10 @@ class _TaskPageState extends State<TaskPage> {
             itemBuilder: (context, index) {
               final doc = docs[index];
               final data = doc.data() as Map<String, dynamic>;
+
+              final start = data['startDate'] ?? '';
+              final end = data['endDate'] ?? '';
+
               return ListTile(
                 title: Text(data['title']),
                 subtitle: Column(
@@ -299,14 +323,12 @@ class _TaskPageState extends State<TaskPage> {
                   children: [
                     Text('進捗: ${data['progress']}%'),
                     Text('ステータス: ${data['status']}'),
-                    if ((data['deadline'] ?? '').isNotEmpty)
-                      Text('期限: ${data['deadline']}'),
+                    if (start.isNotEmpty && end.isNotEmpty)
+                      Text('期間: $start ～ $end'),
                   ],
                 ),
                 trailing: Icon(Icons.chevron_right),
-                onTap: () {
-                  _showEditTaskDialog(doc.id, data);
-                },
+                onTap: () => _showEditTaskDialog(doc.id, data),
               );
             },
           );
