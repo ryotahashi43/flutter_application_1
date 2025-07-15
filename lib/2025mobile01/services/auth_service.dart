@@ -5,24 +5,20 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  // Googleログイン
   Future<User?> signInWithGoogle() async {
     try {
       if (kIsWeb) {
-        // 🔹 Web の場合
+        // Web対応
         GoogleAuthProvider googleProvider = GoogleAuthProvider();
-
-        UserCredential userCredential =
-            await _auth.signInWithPopup(googleProvider);
-
+        final userCredential = await _auth.signInWithPopup(googleProvider);
         return userCredential.user;
       } else {
-        // 🔹 Android / iOS の場合
+        // Android/iOS対応
         final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-
         if (googleUser == null) return null;
 
-        final GoogleSignInAuthentication googleAuth =
-            await googleUser.authentication;
+        final googleAuth = await googleUser.authentication;
 
         final credential = GoogleAuthProvider.credential(
           accessToken: googleAuth.accessToken,
@@ -33,15 +29,26 @@ class AuthService {
         return userCredential.user;
       }
     } catch (e) {
-      print('Googleログインエラー: $e');
+      print('Googleログイン失敗: $e');
       return null;
     }
   }
 
+  // ログアウト
   Future<void> signOut() async {
-    await GoogleSignIn().signOut();
-    await _auth.signOut();
+    try {
+      if (!kIsWeb) {
+        await GoogleSignIn().signOut(); // モバイルのセッション破棄
+      }
+      await _auth.signOut(); // Firebaseセッション終了
+    } catch (e) {
+      print('ログアウト失敗: $e');
+    }
   }
 
+  // ユーザー状態監視（必要に応じて使用）
   Stream<User?> get userChanges => _auth.authStateChanges();
+
+  // 現在のユーザーを取得
+  User? get currentUser => _auth.currentUser;
 }

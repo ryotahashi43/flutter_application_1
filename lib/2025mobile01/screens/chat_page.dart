@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:intl/intl.dart'; // ← 日付・時刻表示用
+import 'package:intl/intl.dart';
 import '../services/gemini_service.dart';
 
 class ChatPage extends StatefulWidget {
@@ -11,6 +11,7 @@ class ChatPage extends StatefulWidget {
 
 class _ChatPageState extends State<ChatPage> {
   final _controller = TextEditingController();
+  final _scrollController = ScrollController();
   final _firestore = FirebaseFirestore.instance;
   late final String uid;
 
@@ -20,32 +21,36 @@ class _ChatPageState extends State<ChatPage> {
     uid = FirebaseAuth.instance.currentUser!.uid;
   }
 
-  // ───────── 送信 ─────────
   Future<void> _sendMessage() async {
     final input = _controller.text.trim();
     if (input.isEmpty) return;
     _controller.clear();
 
-    // user 発言
     await _firestore.collection('users').doc(uid).collection('chats').add({
       'role': 'user',
       'text': input,
       'timestamp': FieldValue.serverTimestamp(),
     });
 
-    // Gemini 返信
     final reply = await getGeminiResponse(input);
     await _firestore.collection('users').doc(uid).collection('chats').add({
       'role': 'assistant',
       'text': reply,
       'timestamp': FieldValue.serverTimestamp(),
     });
+
+    // メッセージ送信後に自動スクロール
+    Future.delayed(Duration(milliseconds: 300), () {
+      if (_scrollController.hasClients) {
+        _scrollController.jumpTo(_scrollController.position.maxScrollExtent);
+      }
+    });
   }
 
-  // ───────── UI ─────────
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Color(0xFFF6F7FB),
       appBar: AppBar(
         title: const Text('学習アシスタントチャット'),
         actions: [
@@ -113,7 +118,7 @@ class _ChatPageState extends State<ChatPage> {
                   final timeLabel =
                       date != null ? DateFormat('HH:mm').format(date) : '';
 
-                  // 日付が変わったら日付ラベルを表示
+                  // 日付ラベル
                   if (lastDateLabel != dateLabel) {
                     messageWidgets.add(
                       Padding(
@@ -122,7 +127,7 @@ class _ChatPageState extends State<ChatPage> {
                           child: Text(
                             dateLabel,
                             style: TextStyle(
-                              color: Colors.grey[700],
+                              color: Colors.grey[600],
                               fontWeight: FontWeight.bold,
                             ),
                           ),
@@ -132,60 +137,114 @@ class _ChatPageState extends State<ChatPage> {
                     lastDateLabel = dateLabel;
                   }
 
-                  // メッセージ本体 + 送信時刻
+                  // 吹き出しメッセージ
                   messageWidgets.add(
-                    Align(
-                      alignment:
-                          isUser ? Alignment.centerRight : Alignment.centerLeft,
-                      child: Container(
-                        margin: const EdgeInsets.symmetric(
-                            vertical: 4, horizontal: 8),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: isUser ? Colors.blue[100] : Colors.grey[300],
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Text(data['text'] ?? ''),
-                            SizedBox(height: 4),
-                            Text(
-                              timeLabel,
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.grey[600],
+                    Row(
+                      mainAxisAlignment: isUser
+                          ? MainAxisAlignment.end
+                          : MainAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.end,
+                      children: [
+                        if (!isUser)
+                          CircleAvatar(
+                            backgroundColor: Colors.green[400],
+                            child: Icon(Icons.school, color: Colors.white),
+                            radius: 18,
+                          ),
+                        if (!isUser) SizedBox(width: 8),
+                        Flexible(
+                          child: Container(
+                            margin: EdgeInsets.symmetric(vertical: 4),
+                            padding: EdgeInsets.symmetric(
+                                vertical: 10, horizontal: 14),
+                            decoration: BoxDecoration(
+                              color: isUser ? Colors.blue[300] : Colors.white,
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(16),
+                                topRight: Radius.circular(16),
+                                bottomLeft: Radius.circular(isUser ? 16 : 4),
+                                bottomRight: Radius.circular(isUser ? 4 : 16),
                               ),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black12,
+                                  blurRadius: 2,
+                                  offset: Offset(1, 2),
+                                ),
+                              ],
                             ),
-                          ],
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  data['text'] ?? '',
+                                  style: TextStyle(
+                                    color:
+                                        isUser ? Colors.white : Colors.black87,
+                                  ),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  timeLabel,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: Colors.grey[500],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
-                      ),
+                        if (isUser) SizedBox(width: 8),
+                        if (isUser)
+                          CircleAvatar(
+                            backgroundColor: Colors.blue[400],
+                            child: Icon(Icons.person, color: Colors.white),
+                            radius: 18,
+                          ),
+                      ],
                     ),
                   );
                 }
 
                 return ListView(
-                  padding: const EdgeInsets.only(bottom: 10),
+                  controller: _scrollController,
+                  padding: const EdgeInsets.only(bottom: 10, left: 8, right: 8),
                   children: messageWidgets,
                 );
               },
             ),
           ),
           const Divider(height: 1),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          Container(
+            color: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
             child: Row(
               children: [
                 Expanded(
                   child: TextField(
                     controller: _controller,
-                    decoration: const InputDecoration(hintText: '質問を入力...'),
+                    decoration: InputDecoration(
+                      hintText: '質問を入力...',
+                      filled: true,
+                      fillColor: Color(0xFFF6F7FB),
+                      contentPadding:
+                          EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(24),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
                     onSubmitted: (_) => _sendMessage(),
                   ),
                 ),
-                IconButton(
-                  icon: const Icon(Icons.send),
-                  onPressed: _sendMessage,
+                SizedBox(width: 8),
+                CircleAvatar(
+                  backgroundColor: Colors.blue[400],
+                  child: IconButton(
+                    icon: Icon(Icons.send, color: Colors.white),
+                    onPressed: _sendMessage,
+                  ),
                 ),
               ],
             ),

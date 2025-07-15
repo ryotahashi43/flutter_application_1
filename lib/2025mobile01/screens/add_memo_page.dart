@@ -16,7 +16,12 @@ class _AddMemoPageState extends State<AddMemoPage> {
     final title = _titleController.text.trim();
     final content = _contentController.text.trim();
 
-    if (title.isEmpty && content.isEmpty) return;
+    if (title.isEmpty && content.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('タイトルまたは内容を入力してください')),
+      );
+      return;
+    }
 
     await FirebaseFirestore.instance
         .collection('users')
@@ -35,27 +40,50 @@ class _AddMemoPageState extends State<AddMemoPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: Text('メモを追加')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // タイトル入力欄
             TextField(
               controller: _titleController,
-              decoration: InputDecoration(labelText: 'タイトル'),
-            ),
-            SizedBox(height: 16),
-            Expanded(
-              child: TextField(
-                controller: _contentController,
-                decoration: InputDecoration(labelText: '内容'),
-                maxLines: null,
-                expands: true,
+              decoration: InputDecoration(
+                labelText: 'タイトル',
+                border: OutlineInputBorder(),
+                filled: true,
+                fillColor: Colors.grey[100],
               ),
             ),
             SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _saveMemo,
-              child: Text('保存'),
+
+            // 内容入力欄
+            TextField(
+              controller: _contentController,
+              decoration: InputDecoration(
+                labelText: '内容',
+                border: OutlineInputBorder(),
+                filled: true,
+                fillColor: Colors.grey[100],
+              ),
+              maxLines: 10,
+              minLines: 6,
+              keyboardType: TextInputType.multiline,
+            ),
+            SizedBox(height: 24),
+
+            // 保存ボタン
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _saveMemo,
+                icon: Icon(Icons.save),
+                label: Text('保存する'),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(vertical: 14),
+                  textStyle: TextStyle(fontSize: 16),
+                ),
+              ),
             ),
           ],
         ),

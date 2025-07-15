@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+
 import '../services/auth_service.dart';
 import 'login_page.dart';
 import 'chat_page.dart';
 import 'memo_page.dart';
 import 'task_page.dart';
 import 'calendar_task_page.dart';
+import 'add_memo_page.dart'; // ← 追加
 
 class HomeScreen extends StatefulWidget {
   @override
@@ -29,53 +32,79 @@ class _HomeScreenState extends State<HomeScreen> {
     '進捗',
   ];
 
+  bool _isLoggingOut = false;
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        leading: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: CircleAvatar(
+            backgroundColor: Colors.blue[200],
+            child: Icon(Icons.person, color: Colors.white),
+          ),
+        ),
         title: Text(_titles[_currentIndex]),
         centerTitle: true,
         actions: [
           IconButton(
             icon: Icon(Icons.logout),
             tooltip: 'ログアウト',
-            onPressed: () async {
-              final shouldLogout = await showDialog<bool>(
-                context: context,
-                builder: (context) => AlertDialog(
-                  title: Text('ログアウトしますか？'),
-                  content: Text('もう一度ログインする必要があります。'),
-                  actions: [
-                    TextButton(
-                      child: Text('キャンセル'),
-                      onPressed: () => Navigator.pop(context, false),
-                    ),
-                    ElevatedButton(
-                      child: Text('ログアウト'),
-                      onPressed: () => Navigator.pop(context, true),
-                    ),
-                  ],
-                ),
-              );
+            onPressed: _isLoggingOut
+                ? null
+                : () async {
+                    final shouldLogout = await showDialog<bool>(
+                      context: context,
+                      builder: (context) => AlertDialog(
+                        title: Text('ログアウトしますか？'),
+                        content: Text('もう一度ログインする必要があります。'),
+                        actions: [
+                          TextButton(
+                            child: Text('キャンセル'),
+                            onPressed: () => Navigator.pop(context, false),
+                          ),
+                          ElevatedButton(
+                            child: Text('ログアウト'),
+                            onPressed: () => Navigator.pop(context, true),
+                          ),
+                        ],
+                      ),
+                    );
 
-              if (shouldLogout == true) {
-                await _authService.signOut();
-                Navigator.pushReplacement(
-                  context,
-                  MaterialPageRoute(builder: (_) => LoginPage()),
-                );
-              }
-            },
+                    if (shouldLogout == true) {
+                      setState(() => _isLoggingOut = true);
+
+                      await _authService.signOut();
+
+                      if (mounted) {
+                        Navigator.of(context).pushAndRemoveUntil(
+                          MaterialPageRoute(builder: (_) => LoginPage()),
+                          (route) => false,
+                        );
+                      }
+                    }
+                  },
           )
         ],
       ),
-
-      // ページ切り替えをIndexedStackでスムーズに
       body: IndexedStack(
         index: _currentIndex,
         children: _pages,
       ),
-
+      // メモタブのときだけFABを右下に表示し、AddMemoPageへ遷移
+      floatingActionButton: _currentIndex == 1
+          ? FloatingActionButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => AddMemoPage()),
+                );
+              },
+              child: Icon(Icons.add),
+              tooltip: '新規メモ作成',
+            )
+          : null,
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         type: BottomNavigationBarType.fixed,

@@ -41,8 +41,11 @@ class _EditMemoPageState extends State<EditMemoPage> {
           TextButton(
               onPressed: () => Navigator.pop(context, false),
               child: Text('キャンセル')),
-          TextButton(
+          ElevatedButton(
               onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.red,
+              ),
               child: Text('削除する')),
         ],
       ),
@@ -59,34 +62,66 @@ class _EditMemoPageState extends State<EditMemoPage> {
     return Scaffold(
       appBar: AppBar(
         title: Text('メモの編集'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.delete),
-            onPressed: _deleteMemo,
-          )
-        ],
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
         child: Column(
           children: [
+            // タイトル入力
             TextField(
               controller: _titleController,
-              decoration: InputDecoration(labelText: 'タイトル'),
-            ),
-            SizedBox(height: 12),
-            Expanded(
-              child: TextField(
-                controller: _contentController,
-                decoration: InputDecoration(labelText: '内容'),
-                maxLines: null,
-                expands: true,
+              decoration: InputDecoration(
+                labelText: 'タイトル',
+                border: OutlineInputBorder(),
+                filled: true,
+                fillColor: Colors.grey[100],
               ),
             ),
             SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _updateMemo,
-              child: Text('保存'),
+
+            // 内容入力
+            TextField(
+              controller: _contentController,
+              decoration: InputDecoration(
+                labelText: '内容',
+                border: OutlineInputBorder(),
+                filled: true,
+                fillColor: Colors.grey[100],
+              ),
+              maxLines: 10,
+              minLines: 6,
+              keyboardType: TextInputType.multiline,
+            ),
+            SizedBox(height: 24),
+
+            // 保存ボタン
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                icon: Icon(Icons.save),
+                label: Text('保存する'),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(vertical: 14),
+                  textStyle: TextStyle(fontSize: 16),
+                ),
+                onPressed: _updateMemo,
+              ),
+            ),
+
+            SizedBox(height: 12),
+
+            // 削除ボタン
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: Icon(Icons.delete, color: Colors.red),
+                label: Text('削除する', style: TextStyle(color: Colors.red)),
+                style: OutlinedButton.styleFrom(
+                  side: BorderSide(color: Colors.red),
+                  padding: EdgeInsets.symmetric(vertical: 14),
+                ),
+                onPressed: _deleteMemo,
+              ),
             ),
           ],
         ),
