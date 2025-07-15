@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import 'home_screen.dart';
+import 'start_guide.dart';
 
 class LoginPage extends StatefulWidget {
   @override
@@ -31,7 +32,7 @@ class _LoginPageState extends State<LoginPage> {
             children: [
               // タイトル
               Text(
-                '学習アシスタントアプリ',
+                'Study Helper',
                 style: TextStyle(
                   fontSize: 22,
                   fontWeight: FontWeight.bold,
@@ -89,9 +90,12 @@ class _LoginPageState extends State<LoginPage> {
               // 利用規約リンク
               TextButton(
                 onPressed: () {
-                  // TODO: 利用規約ページへの遷移処理を追加
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (_) => StartGuidePage()),
+                  );
                 },
-                child: Text('利用規約・プライバシーポリシー'),
+                child: Text('このアプリの使い方'),
               ),
             ],
           ),
